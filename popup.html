@@ -1,0 +1,66 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Gemini Exporter</title>
+    <style>
+      body {
+        font: 13px/1.4 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+        margin: 12px;
+        width: 280px;
+      }
+      button {
+        width: 100%;
+        padding: 10px 12px;
+        border: 0;
+        border-radius: 10px;
+        background: #1a73e8;
+        color: #fff;
+        cursor: pointer;
+        font-weight: 600;
+      }
+      button:disabled {
+        opacity: 0.6;
+        cursor: default;
+      }
+      .hint {
+        margin-top: 10px;
+        color: #555;
+      }
+      .status {
+        margin-top: 10px;
+        white-space: pre-wrap;
+        color: #111;
+      }
+      .error {
+        color: #b3261e;
+      }
+      .ok {
+        color: #0b8043;
+      }
+      code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      }
+    </style>
+  </head>
+  <body>
+    <button id="exportBtn">Export current Gemini app</button>
+    <button id="mhtmlBtn" style="margin-top: 8px; background: #5f6368">Fallback: save tab as MHTML</button>
+    <label style="display: block; margin-top: 10px; color: #333">
+      <input id="keepScripts" type="checkbox" checked />
+      Keep interactivity (keep scripts)
+    </label>
+    <label style="display: block; margin-top: 10px; color: #333">
+      <input id="disableInteractions" type="checkbox" checked />
+      Disable clicks (links/buttons/tabs)
+    </label>
+    <div class="hint">
+      Open a Gemini chat that contains an interactive “app” (SafeContentFrame), then click Export.
+      If Export can’t reach the app frame, use the MHTML fallback below.
+      Tip: enable “Keep interactivity” to keep the app’s JS; exporter will also try to embed dynamic images so they won’t fall back to “/gen?prompt=…” placeholders.
+    </div>
+    <div id="status" class="status"></div>
+    <script src="popup.js"></script>
+  </body>
+</html>

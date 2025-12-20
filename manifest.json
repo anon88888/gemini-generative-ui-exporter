@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "Gemini Generative UI Exporter",
+  "version": "1.0.0",
+  "description": "One-click export of Gemini generative UI (SafeContentFrame) to a self-contained HTML file.",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Export Gemini App"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "permissions": ["activeTab", "tabs", "scripting", "webNavigation", "pageCapture", "downloads"],
+  "host_permissions": [
+    "https://gemini.google.com/*",
+    "*://*.scf.usercontent.goog/*",
+    "<all_urls>"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["https://gemini.google.com/*", "*://*.scf.usercontent.goog/*"],
+      "js": ["contentScript.js"],
+      "all_frames": true,
+      "match_about_blank": true,
+      "match_origin_as_fallback": true,
+      "run_at": "document_idle"
+    }
+  ]
+}
