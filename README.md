@@ -1,41 +1,89 @@
 # Gemini Generative UI Exporter (MV3)
 
-Exports Gemini “generative UI / app” responses (the interactive content rendered in a SafeContentFrame `*.scf.usercontent.goog`) into a **single self‑contained HTML file**.
+[中文](#中文) · [English](#english)
 
-This is designed to solve:
+---
 
-- Some images are temporary/signed URLs → exporter downloads and inlines them as `data:` URIs.
-- Some click handlers / scripts are annoying / hard to remove → exporter makes a **static snapshot** by removing `<script>` tags and inline `on*=` handlers.
+## 中文
 
-## Install (Chrome)
+把 Gemini 聊天里生成的「交互式 App / 生成式 UI」（通常渲染在 SafeContentFrame：`*.scf.usercontent.goog`）一键导出成**单文件 HTML**，方便离线保存/分享/归档。
+
+### 解决什么问题
+
+- 图片是临时链接/签名链接 → 导出时尽量下载并内嵌为 `data:`（避免过期）
+- 点击事件/脚本不好“删除” → 可切换成静态快照（移除脚本 + 禁用交互）
+
+### 安装（Chrome）
+
+1. 打开 `chrome://extensions`
+2. 开启「开发者模式」
+3. 点击「加载已解压的扩展程序」
+4. 选择目录：`gemini-exporter-extension`
+
+### 使用
+
+1. 打开 `https://gemini.google.com/`，进入包含「App」的对话（不是纯文本回复）。
+2. 点扩展图标。
+3. 点 **Export current Gemini app**。
+4. 会下载类似 `gemini-export-YYYYMMDD-HHMMSS.html` 的文件。
+
+### 选项说明
+
+- **Keep interactivity (keep scripts)**（默认勾选）：保留 App 的 JS，导出后仍可交互；同时会尽量把动态图片（例如会回落成 `/gen?prompt=...` 的占位图）预抓取并内嵌，避免导出后变灰。
+- **Disable clicks (links/buttons/tabs)**：导出为“静态快照”风格（归档/截图模式），不想让页面再乱跳/切 Tab 时用。
+- **Fallback: save tab as MHTML**：当 Chrome/权限导致无法访问子 frame 时的兜底方案。
+
+### 注意 / 限制
+
+- 默认导出当前页面里**最后一个**检测到的 generative UI frame（常见场景只有一个）。
+- 交互式地图这类内容通常依赖第三方脚本（例如 Google Maps），导出后不一定能在 `file://` 下正常工作；想更稳定/离线可用，建议取消勾选 **Keep interactivity** 导出静态版。
+- 如果导出时地图/某个 Tab 尚未渲染（仍在加载），导出文件里也可能缺失对应内容；导出前先切到对应 Tab 并等它加载完成。
+
+### 排查
+
+- 代码更新后：`chrome://extensions` → 扩展 →「重新加载」，再刷新 Gemini 标签页（⌘R）。
+- 找不到 App：确认对话里确实有可交互卡片/页面，并等待其加载完成再导出。
+- 够不着子 frame：确认扩展「网站访问权限」允许在所有网站上，必要时暂时关闭广告拦截/隐私/翻译类扩展再试。
+
+---
+
+## English
+
+One-click export of Gemini “generative UI / app” responses (usually rendered inside a SafeContentFrame `*.scf.usercontent.goog`) into a **single self-contained HTML file** for offline archiving/sharing.
+
+### What it solves
+
+- Images are temporary/signed URLs → download & inline as `data:` when possible (avoid expiry)
+- Click handlers / scripts are hard to “remove” → export as a static snapshot (remove scripts + disable interactions)
+
+### Install (Chrome)
 
 1. Open `chrome://extensions`
 2. Enable **Developer mode**
 3. Click **Load unpacked**
-4. Select the folder: `gemini-exporter-extension`
+4. Select folder: `gemini-exporter-extension`
 
-## Use
+### Use
 
-1. Open `https://gemini.google.com/` and open a chat that contains a generated “app”.
+1. Open `https://gemini.google.com/` and open a chat that contains an interactive “app” (not plain text only).
 2. Click the extension icon.
 3. Click **Export current Gemini app**.
 4. A file like `gemini-export-YYYYMMDD-HHMMSS.html` downloads.
-5. Optional:
-   - Toggle **Disable clicks** to freeze the export (archive/screenshot mode).
-   - Toggle **Keep interactivity (keep scripts)** to keep the app’s JS (interactive mode). The exporter also tries to embed dynamic “/gen?prompt=…” images as `data:` URLs so they still show outside Gemini.
 
-Alternative (when Chrome blocks subframe access):
+### Options
 
-- Use **Fallback: save tab as MHTML** to let Chrome capture the whole page even if the app frame is restricted.
+- **Keep interactivity (keep scripts)** (default): keep the app JS so the export stays interactive; the exporter also tries to pre-capture dynamic images (e.g. apps that would fall back to `/gen?prompt=...` placeholders) and embed them as `data:` URLs.
+- **Disable clicks (links/buttons/tabs)**: “static snapshot” / archive mode to prevent navigation and UI toggles.
+- **Fallback: save tab as MHTML**: use Chrome’s built-in capture when the extension can’t reach the subframe.
 
-## Notes / limitations
+### Notes / limitations
 
-- It exports the **last** generative UI frame found in the current Gemini page (works for the common case where there’s just one).
-- Export defaults to **Keep interactivity** (scripts kept). Uncheck it to export a **static snapshot** (scripts removed).
-- If some assets fail to inline (site blocks fetching), the export still completes but some images/fonts may be missing.
+- Exports the **last** generative UI frame found on the current Gemini page (works for the common case where there’s only one).
+- Interactive maps often depend on third-party JS (e.g. Google Maps) and may not work reliably when opened from `file://`. For a more stable/offline export, uncheck **Keep interactivity**.
+- If a tab/section hasn’t rendered yet (still loading), it may be missing from the export. Switch to that tab and wait until it finishes loading before exporting.
 
-## Troubleshooting
+### Troubleshooting
 
-- If you updated the code, go to `chrome://extensions` and click **更新** for the extension, then reload the Gemini tab.
-- If Export says it can’t find an app frame, make sure the page shows an interactive card/app (not just plain text), and the app is fully loaded before exporting.
-- If it says it can’t reach the app subframe, try temporarily disabling adblock/privacy/translate extensions (they sometimes inject iframes that break “all frames” scripting).
+- After updating code: `chrome://extensions` → reload the extension, then reload the Gemini tab.
+- “No app frame found”: make sure the chat contains an interactive card/app and it’s fully loaded.
+- “Can’t reach subframe”: ensure the extension has “all sites” access; temporarily disable adblock/privacy/translate extensions and retry.
