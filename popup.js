@@ -1,7 +1,6 @@
-const exportBtn = document.getElementById("exportBtn");
+const exportInteractiveBtn = document.getElementById("exportInteractiveBtn");
+const exportStaticBtn = document.getElementById("exportStaticBtn");
 const mhtmlBtn = document.getElementById("mhtmlBtn");
-const keepScriptsEl = document.getElementById("keepScripts");
-const disableInteractionsEl = document.getElementById("disableInteractions");
 const statusEl = document.getElementById("status");
 
 function setStatus(text, kind) {
@@ -9,32 +8,16 @@ function setStatus(text, kind) {
   statusEl.className = `status ${kind || ""}`.trim();
 }
 
-function syncOptionsUi() {
-  const keep = !!keepScriptsEl?.checked;
-  if (!disableInteractionsEl) return;
-  if (keep) {
-    disableInteractionsEl.checked = false;
-    disableInteractionsEl.disabled = true;
-  } else {
-    disableInteractionsEl.disabled = false;
-  }
+function setBusy(busy) {
+  exportInteractiveBtn.disabled = busy;
+  exportStaticBtn.disabled = busy;
+  mhtmlBtn.disabled = busy;
 }
 
-keepScriptsEl?.addEventListener("change", syncOptionsUi);
-syncOptionsUi();
-
-exportBtn.addEventListener("click", async () => {
-  exportBtn.disabled = true;
-  mhtmlBtn.disabled = true;
+async function runExport(options) {
+  setBusy(true);
   setStatus("Exporting…", "");
   try {
-    const keepScripts = !!keepScriptsEl?.checked;
-    const disableInteractions = !!disableInteractionsEl?.checked;
-    const options = {
-      keepScripts,
-      disableInteractions,
-      keepHashLinks: false,
-    };
     const resp = await chrome.runtime.sendMessage({ type: "START_EXPORT", options });
     if (!resp?.ok) throw new Error(resp?.error || "Export failed");
     const filename = resp.result?.filename || "(unknown filename)";
@@ -46,14 +29,20 @@ exportBtn.addEventListener("click", async () => {
   } catch (err) {
     setStatus(String(err?.message || err), "error");
   } finally {
-    exportBtn.disabled = false;
-    mhtmlBtn.disabled = false;
+    setBusy(false);
   }
+}
+
+exportInteractiveBtn.addEventListener("click", async () => {
+  await runExport({ keepScripts: true, keepHashLinks: false });
+});
+
+exportStaticBtn.addEventListener("click", async () => {
+  await runExport({ keepScripts: false, disableInteractions: true, keepHashLinks: false });
 });
 
 mhtmlBtn.addEventListener("click", async () => {
-  exportBtn.disabled = true;
-  mhtmlBtn.disabled = true;
+  setBusy(true);
   setStatus("Saving MHTML…", "");
   try {
     const resp = await chrome.runtime.sendMessage({ type: "SAVE_MHTML" });
@@ -62,7 +51,6 @@ mhtmlBtn.addEventListener("click", async () => {
   } catch (err) {
     setStatus(String(err?.message || err), "error");
   } finally {
-    exportBtn.disabled = false;
-    mhtmlBtn.disabled = false;
+    setBusy(false);
   }
 });

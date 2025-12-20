@@ -8,6 +8,8 @@
 
 把 Gemini 聊天里生成的「交互式 App / 生成式 UI」（通常渲染在 SafeContentFrame：`*.scf.usercontent.goog`）一键导出成**单文件 HTML**，方便离线保存/分享/归档。
 
+一句话：打开 Gemini 里有「App/动态视图」的页面 → 点扩展 → `Export (Interactive)`（带点击+图片）或 `Export (Static)`（静态无点击）。
+
 ### 解决什么问题
 
 - 图片是临时链接/签名链接 → 导出时尽量下载并内嵌为 `data:`（避免过期）
@@ -24,13 +26,13 @@
 
 1. 打开 `https://gemini.google.com/`，进入包含「App」的对话（不是纯文本回复）。
 2. 点扩展图标。
-3. 点 **Export current Gemini app**。
+3. 点 `Export (Interactive)` 或 `Export (Static)`。
 4. 会下载类似 `gemini-export-YYYYMMDD-HHMMSS.html` 的文件。
 
 ### 选项说明
 
-- **Keep interactivity (keep scripts)**（默认勾选）：保留 App 的 JS，导出后仍可交互；同时会尽量把动态图片（例如会回落成 `/gen?prompt=...` 的占位图）预抓取并内嵌，避免导出后变灰。
-- **Disable clicks (links/buttons/tabs)**：导出为“静态快照”风格（归档/截图模式），不想让页面再乱跳/切 Tab 时用。
+- **Export (Interactive)**：保留 App 的 JS，导出后仍可交互；同时会尽量把动态图片（例如会回落成 `/gen?prompt=...` 的占位图）预抓取并内嵌，避免导出后变灰。
+- **Export (Static)**：导出为“静态快照”风格（归档/截图模式），不想让页面再乱跳/切 Tab 时用。
 - **Fallback: save tab as MHTML**：当 Chrome/权限导致无法访问子 frame 时的兜底方案。
 
 ### 注意 / 限制
@@ -51,6 +53,8 @@
 
 One-click export of Gemini “generative UI / app” responses (usually rendered inside a SafeContentFrame `*.scf.usercontent.goog`) into a **single self-contained HTML file** for offline archiving/sharing.
 
+One-liner: open a Gemini chat with an interactive app → click the extension → `Export (Interactive)` (interactive) or `Export (Static)` (static).
+
 ### What it solves
 
 - Images are temporary/signed URLs → download & inline as `data:` when possible (avoid expiry)
@@ -67,13 +71,13 @@ One-click export of Gemini “generative UI / app” responses (usually rendered
 
 1. Open `https://gemini.google.com/` and open a chat that contains an interactive “app” (not plain text only).
 2. Click the extension icon.
-3. Click **Export current Gemini app**.
+3. Click `Export (Interactive)` or `Export (Static)`.
 4. A file like `gemini-export-YYYYMMDD-HHMMSS.html` downloads.
 
 ### Options
 
-- **Keep interactivity (keep scripts)** (default): keep the app JS so the export stays interactive; the exporter also tries to pre-capture dynamic images (e.g. apps that would fall back to `/gen?prompt=...` placeholders) and embed them as `data:` URLs.
-- **Disable clicks (links/buttons/tabs)**: “static snapshot” / archive mode to prevent navigation and UI toggles.
+- **Export (Interactive)**: keep the app JS so the export stays interactive; the exporter also tries to pre-capture dynamic images (e.g. apps that would fall back to `/gen?prompt=...` placeholders) and embed them as `data:` URLs.
+- **Export (Static)**: “static snapshot” / archive mode to prevent navigation and UI toggles.
 - **Fallback: save tab as MHTML**: use Chrome’s built-in capture when the extension can’t reach the subframe.
 
 ### Notes / limitations

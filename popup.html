@@ -45,20 +45,15 @@
     </style>
   </head>
   <body>
-    <button id="exportBtn">Export current Gemini app</button>
+    <button id="exportInteractiveBtn">Export (Interactive)</button>
+    <button id="exportStaticBtn" style="margin-top: 8px; background: #1e8e3e">Export (Static)</button>
     <button id="mhtmlBtn" style="margin-top: 8px; background: #5f6368">Fallback: save tab as MHTML</button>
-    <label style="display: block; margin-top: 10px; color: #333">
-      <input id="keepScripts" type="checkbox" checked />
-      Keep interactivity (keep scripts)
-    </label>
-    <label style="display: block; margin-top: 10px; color: #333">
-      <input id="disableInteractions" type="checkbox" checked />
-      Disable clicks (links/buttons/tabs)
-    </label>
     <div class="hint">
-      Open a Gemini chat that contains an interactive “app” (SafeContentFrame), then click Export.
-      If Export can’t reach the app frame, use the MHTML fallback below.
-      Tip: enable “Keep interactivity” to keep the app’s JS; exporter will also try to embed dynamic images so they won’t fall back to “/gen?prompt=…” placeholders.
+      中文：打开 Gemini 里有「App/动态视图」的页面 → 点扩展 →
+      <code>Export (Interactive)</code>（带点击+图片）或 <code>Export (Static)</code>（静态无点击）。
+      <br />
+      English: Open a Gemini chat with an interactive app → click the extension →
+      <code>Export (Interactive)</code> or <code>Export (Static)</code>.
     </div>
     <div id="status" class="status"></div>
     <script src="popup.js"></script>
