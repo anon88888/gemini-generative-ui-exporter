@@ -160,8 +160,8 @@ async function getAllFrames(tabId) {
   });
 }
 
-function matchFrameToTopShim(frames, topShims) {
-  if (!frames.length || !topShims.length) return null;
+function matchFramesToTopShims(frames, topShims) {
+  if (!frames.length || !topShims.length) return [];
 
   const shimAreaByKey = new Map();
   for (const s of topShims) {
@@ -186,14 +186,14 @@ function matchFrameToTopShim(frames, topShims) {
     })
     .sort((a, b) => (b.area || 0) - (a.area || 0));
 
-  return candidates[0] || null;
+  return candidates;
 }
 
-async function probeFramesForShim(tabId, frames, topShims) {
+async function probeFramesForShims(tabId, frames, topShims) {
   const frameIds = Array.from(
     new Set(frames.map((f) => f?.frameId).filter((id) => typeof id === "number" && id !== 0))
   );
-  if (!frameIds.length) return null;
+  if (!frameIds.length) return [];
 
   const topKeys = new Set();
   const topOrigins = new Set();
@@ -259,15 +259,15 @@ async function probeFramesForShim(tabId, frames, topShims) {
     });
   }
 
-  if (!matches.length) return null;
+  if (!matches.length) return [];
   matches.sort((a, b) => {
     if (a.keyMatch !== b.keyMatch) return a.keyMatch ? -1 : 1;
     return (b.elementCount || 0) - (a.elementCount || 0);
   });
-  return matches[0];
+  return matches;
 }
 
-async function findShimFrame(tabId, topShims, timeoutMs = 10_000) {
+async function findAllShimFrames(tabId, topShims, timeoutMs = 10_000) {
   const start = Date.now();
   let lastFrames = [];
   let lastErr = null;
@@ -275,20 +275,36 @@ async function findShimFrame(tabId, topShims, timeoutMs = 10_000) {
     try {
       const frames = await getAllFrames(tabId);
       lastFrames = frames;
-      const match = matchFrameToTopShim(frames, topShims);
-      if (match) return { frameId: match.frameId, url: match.url, method: "webNavigation" };
+      const matches = matchFramesToTopShims(frames, topShims);
+      if (matches.length >= topShims.length) {
+         return { frames: matches, method: "webNavigation" };
+      }
+      
+      // If we found some but not all, maybe we should wait a bit more?
+      // Or if we found nothing, try probe.
+      if (matches.length > 0 && Date.now() - start > 2000) {
+          // If we have some matches and waited 2s, assume that's it.
+          return { frames: matches, method: "webNavigation" };
+      }
 
       // If URLs are hidden/mismatched, probe by executing a tiny script in each frame.
-      const probed = await probeFramesForShim(tabId, frames, topShims);
-      if (probed) return { frameId: probed.frameId, url: probed.url, method: "probe" };
+      // Probing is expensive, so maybe do it only if webNav found nothing?
+      if (matches.length === 0) {
+          const probed = await probeFramesForShims(tabId, frames, topShims);
+          if (probed.length > 0) return { frames: probed, method: "probe" };
+      }
+      
     } catch (err) {
       lastErr = err;
       break;
     }
     await sleep(250);
   }
+  // If we timed out but found some via webNav in the last loop?
+  // The loop returns early if it finds enough.
+  
   if (lastErr) throw lastErr;
-  return { frameId: null, url: null, method: "none", debugFrames: lastFrames };
+  return { frames: [], method: "none", debugFrames: lastFrames };
 }
 
 function pickBestShimFrame(frames) {
@@ -353,12 +369,13 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         );
       }
 
-      let target = null;
+      let targets = [];
       let debug = "";
       try {
-        const found = await findShimFrame(tabId, topShims, 10_000);
-        if (found?.frameId != null) target = found;
-        else {
+        const found = await findAllShimFrames(tabId, topShims, 10_000);
+        if (found?.frames && found.frames.length > 0) {
+          targets = found.frames;
+        } else {
           const frames = found?.debugFrames || [];
           const emptyUrlCount = frames.filter((f) => typeof f?.url === "string" && !f.url).length;
           const frameLines = frames
@@ -376,14 +393,15 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         debug = `Debug:\n- webNavigation error: ${String(err?.message || err)}\n`;
       }
 
-      if (!target) {
-        // Last resort: try direct allFrames scripting and pick the best match.
+      if (targets.length === 0) {
+        // Last resort: try direct allFrames scripting and pick all matches.
         const shimFrames = await detectShimFrames(tabId).catch(() => []);
-        const best = pickBestShimFrame(shimFrames);
-        if (best) target = { frameId: best.frameId, url: best.href, method: "allFrames" };
+        if (shimFrames.length > 0) {
+          targets = shimFrames.map((f) => ({ frameId: f.frameId, url: f.href, method: "allFrames" }));
+        }
       }
 
-      if (!target) {
+      if (targets.length === 0) {
         const example = topShims[0]?.src || "";
         throw new Error(
           "Found the Gemini app iframe, but the extension still can't reach the app frame.\n\n" +
@@ -397,32 +415,73 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         );
       }
 
-      // Ensure the content script is present in the target frame (some Chrome setups won't auto-inject into subframes).
-      try {
-        const ping = await sendMessageToFrame(tabId, target.frameId, {
-          type: "GEMINI_EXPORTER_PING",
-        });
-        if (!ping?.ok) throw new Error("Ping failed");
-      } catch {
-        try {
-          await injectContentScriptIntoFrame(tabId, target.frameId);
-        } catch (err) {
-          throw new Error(
-            `Failed to inject exporter into the app frame (frameId=${target.frameId}). ${String(
-              err?.message || err
-            )}`
-          );
+      // Filter duplicates by frameId
+      const uniqueTargets = [];
+      const seenFrameIds = new Set();
+      for (const t of targets) {
+        if (!seenFrameIds.has(t.frameId)) {
+          seenFrameIds.add(t.frameId);
+          uniqueTargets.push(t);
         }
-        const ping = await sendMessageToFrame(tabId, target.frameId, { type: "GEMINI_EXPORTER_PING" });
-        if (!ping?.ok) throw new Error("Ping failed after injection");
+      }
+      targets = uniqueTargets;
+
+      const results = [];
+      const errors = [];
+
+      for (let i = 0; i < targets.length; i++) {
+        const target = targets[i];
+        try {
+          // Ensure the content script is present in the target frame (some Chrome setups won't auto-inject into subframes).
+          try {
+            const ping = await sendMessageToFrame(tabId, target.frameId, {
+              type: "GEMINI_EXPORTER_PING",
+            });
+            if (!ping?.ok) throw new Error("Ping failed");
+          } catch {
+            try {
+              await injectContentScriptIntoFrame(tabId, target.frameId);
+            } catch (err) {
+              throw new Error(
+                `Failed to inject exporter into the app frame (frameId=${target.frameId}). ${String(
+                  err?.message || err
+                )}`
+              );
+            }
+            const ping = await sendMessageToFrame(tabId, target.frameId, { type: "GEMINI_EXPORTER_PING" });
+            if (!ping?.ok) throw new Error("Ping failed after injection");
+          }
+
+          const suffix = targets.length > 1 ? `-${i + 1}` : "";
+          const filenameHint = `gemini-export${suffix}`;
+
+          const resp = await sendMessageToFrame(tabId, target.frameId, {
+            type: "GEMINI_EXPORTER_EXPORT",
+            payload: { filenameHint, options },
+          });
+          if (!resp?.ok) throw new Error(resp?.error || "Export failed.");
+          results.push(resp.result);
+        } catch (err) {
+          errors.push(`Frame ${target.frameId}: ${err.message}`);
+        }
       }
 
-      const resp = await sendMessageToFrame(tabId, target.frameId, {
-        type: "GEMINI_EXPORTER_EXPORT",
-        payload: { filenameHint: "gemini-export", options },
-      });
-      if (!resp?.ok) throw new Error(resp?.error || "Export failed.");
-      sendResponse({ ok: true, result: resp.result });
+      if (results.length === 0 && errors.length > 0) {
+         throw new Error("All exports failed:\n" + errors.join("\n"));
+       }
+ 
+       let filenames = results.map((r) => r.filename).join(", ");
+       if (errors.length > 0) {
+           filenames += ` (${errors.length} failed)`;
+       }
+       
+       const combinedStats = {
+         assetCandidates: results.reduce((acc, r) => acc + (r.stats?.assetCandidates || 0), 0),
+         inlined: results.reduce((acc, r) => acc + (r.stats?.inlined || 0), 0),
+         failed: results.reduce((acc, r) => acc + (r.stats?.failed || 0), 0),
+       };
+ 
+       sendResponse({ ok: true, result: { filename: filenames, stats: combinedStats } });
     })().catch((err) => {
       sendResponse({ ok: false, error: String(err?.message || err) });
     });
